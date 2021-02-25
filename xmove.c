@@ -4,11 +4,9 @@
  *  Compile: gcc -s xmove.c -o xmove -DUNICODE -municode
  */
 
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <shellapi.h>
 
-#define MAGIC       TEXT("/elevate")
+#define MAGIC       TEXT("--no-admin")
 #define COUNT(a)    (sizeof(a) / sizeof(*a))
 #define STR(a)      (a), COUNT(a) - sizeof(*a)
 
@@ -60,8 +58,33 @@ BOOL move_file(LPCTSTR lpOld, LPCTSTR lpNew)
     return bSuccess;
 }
 
+// ShellExecute helper
+BOOL runas(LPCTSTR lpFile, LPCTSTR lpFormat, ...)
+{
+    va_list args;
+    va_start(args, lpFormat);
+
+    TCHAR lpParam[1024 + 1];
+    wvsprintf(lpParam, lpFormat, args);
+
+    DWORD dwExitCode = 1;
+    SHELLEXECUTEINFO shxi = {
+        .cbSize = sizeof(shxi),
+        .fMask = SEE_MASK_NOCLOSEPROCESS,
+        .lpVerb = TEXT("runas"),
+        .lpFile = lpFile,
+        .lpParameters = lpParam
+    };
+    if (ShellExecuteEx(&shxi)) {
+        WaitForSingleObject(shxi.hProcess, INFINITE);
+        GetExitCodeProcess(shxi.hProcess, &dwExitCode);
+    }
+
+    return dwExitCode ? FALSE : TRUE;
+}
+
 // save stream to new file
-BOOL save_to(HANDLE hIn, LPCTSTR lpNew)
+BOOL saveas(HANDLE hIn, LPCTSTR lpNew)
 {
     HANDLE hOut = CreateFile(lpNew, GENERIC_WRITE, FILE_SHARE_DELETE, NULL,
         CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -84,17 +107,20 @@ int wmain(int argc, wchar_t* argv[])
 int main(int argc, char* argv[])
 #endif // UNICODE
 {
-    if (argc == 4 && lstrcmp(argv[1], MAGIC) == 0)
-        // xmove --move SRC DEST
-        ExitProcess(move_file(argv[2], argv[3]) ? 0 : 1);
-
+    BOOL bElevate = TRUE;
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
     TCHAR achSrcFile[MAX_PATH], achDestFile[MAX_PATH];
+
+    if (argc > 1 && lstrcmp(argv[1], MAGIC) == 0) {
+        bElevate = FALSE;
+        --argc;
+        ++argv;
+    }
 
     if (argc == 2 && GetFileType(hStdin) != FILE_TYPE_CHAR) {
         // :w !xmove %
         lpTempFile = make_tempname(achSrcFile);
-        if (!save_to(hStdin, lpTempFile))
+        if (!saveas(hStdin, lpTempFile))
             error_exit(STR("cannot create temporary file"));
         GetFullPathName(argv[1], COUNT(achDestFile), achDestFile, NULL);
     } else if (argc == 3) {
@@ -105,24 +131,9 @@ int main(int argc, char* argv[])
         error_exit(STR("invoke as 'xmove SRC DEST' or ':w !xmove DEST' (in Vim)"));
     }
 
-    // self-elevate to MoveFile
-    TCHAR lpParam[1024 + 1];
-    wsprintf(lpParam, TEXT("%s \"%s\" \"%s\""), MAGIC, achSrcFile, achDestFile);
-    SHELLEXECUTEINFO shxi = {
-        .cbSize = sizeof(shxi),
-        .fMask = SEE_MASK_NOCLOSEPROCESS,
-        .lpVerb = TEXT("runas"),
-        .lpFile = argv[0],
-        .lpParameters = lpParam
-    };
-    if (!ShellExecuteEx(&shxi))
-        error_exit(STR("elevation prohibited"));
-
-    // wait until done
-    DWORD dwExitCode;
-    WaitForSingleObject(shxi.hProcess, INFINITE);
-    GetExitCodeProcess(shxi.hProcess, &dwExitCode);
-    if (dwExitCode != 0)
+    BOOL bSuccess = bElevate ? runas(argv[0], TEXT("%s \"%s\" \"%s\""), MAGIC,
+        achSrcFile, achDestFile) : move_file(achSrcFile, achDestFile);
+    if (!bSuccess)
         error_exit(STR("cannot move file"));
 
     return 0;
