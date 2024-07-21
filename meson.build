@@ -1,5 +1,5 @@
-project('xmove', 'c', default_options : \
-  ['buildtype=minsize', 'c_std=c11', 'warning_level=3', 'werror=true'])
+project('xmove', 'c', default_options : ['buildtype=minsize', 'c_std=c99',
+  'warning_level=3', 'werror=true'])
 
 
 sources = ['xmove.c']
@@ -15,7 +15,6 @@ endif
 
 if get_option('nostdlib')
   sources += 'nocrt0c.c'
-  c_args += ['-DNOSTDLIB']
   link_args += ['-nostdlib', '-lkernel32', '-luser32', '-lshell32']
 endif
 

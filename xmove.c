@@ -8,7 +8,7 @@
 
 #define MAGIC       TEXT("--no-admin")
 #define COUNT(a)    (sizeof(a) / sizeof(*a))
-#define STR(a)      (a), COUNT(a) - sizeof(*a)
+#define STR(a)      (a), (sizeof(a) - sizeof(*a))
 
 // temporary file name pointer
 static LPCTSTR lpTempFile;

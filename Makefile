@@ -4,7 +4,6 @@ UNICODE ?= on
 include yama.mk
 
 define NOSTDLIB.on
-    CPPFLAGS += -DNOSTDLIB
     LDFLAGS += -nostdlib
     LDLIBS += -lkernel32 -luser32 -lshell32
     $$(call yama.goalExe,xmove,../nocrt0/nocrt0c)
