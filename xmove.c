@@ -1,10 +1,23 @@
 /*
  *  Utility to bypass Windows(R) file protection
  *  Vim example: :w !xmove %
- *  Compile: gcc -s xmove.c -o xmove -DUNICODE -municode
+ *  Compile: gcc -O -fno-ident -s -nostartfiles xmove.c -o xmove
  */
 
-#include <windows.h>
+#ifndef UNICODE
+#define UNICODE
+#endif // UNICODE
+#ifndef _UNICODE
+#define _UNICODE
+#endif // _UNICODE
+
+#include <stdarg.h>
+#include <tchar.h>
+
+#include <windef.h>
+#include <winbase.h>
+#include <winuser.h>
+#include <shellapi.h>
 
 #define MAGIC       TEXT("--no-admin")
 #define COUNT(a)    (sizeof(a) / sizeof(*a))
@@ -101,11 +114,7 @@ BOOL saveas(HANDLE hIn, LPCTSTR lpNew)
     return CloseHandle(hOut);
 }
 
-#ifdef UNICODE
-int wmain(int argc, wchar_t* argv[])
-#else
-int main(int argc, char* argv[])
-#endif // UNICODE
+int _tmain(int argc, _TCHAR* argv[])
 {
     BOOL bElevate = TRUE;
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
@@ -137,4 +146,16 @@ int main(int argc, char* argv[])
         error_exit(STR("cannot move file"));
 
     return 0;
+}
+
+// micro startup code (requires -nostartfiles)
+#if defined(__GNUC__)
+#define wmainCRTStartup mainCRTStartup
+#endif // __GNUC__
+__declspec(noreturn)
+void wmainCRTStartup(void)
+{
+    int argc;
+    wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    ExitProcess(_tmain(argc, argv));
 }
