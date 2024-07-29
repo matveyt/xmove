@@ -1,23 +1,18 @@
 /*
  *  Utility to bypass Windows(R) file protection
  *  Vim example: :w !xmove %
- *  Compile: gcc -O -fno-ident -s -nostartfiles xmove.c -o xmove
  */
 
-#ifndef UNICODE
-#define UNICODE
-#endif // UNICODE
-#ifndef _UNICODE
+#if defined(UNICODE) && !defined(_UNICODE)
 #define _UNICODE
-#endif // _UNICODE
+#endif // UNICODE
 
 #include <stdarg.h>
 #include <tchar.h>
-
 #include <windef.h>
 #include <winbase.h>
-#include <winuser.h>
 #include <shellapi.h>
+#include <winuser.h>
 
 #define MAGIC       TEXT("--no-admin")
 #define COUNT(a)    (sizeof(a) / sizeof(*a))
@@ -148,14 +143,6 @@ int _tmain(int argc, _TCHAR* argv[])
     return 0;
 }
 
-// micro startup code (requires -nostartfiles)
-#if defined(__GNUC__)
-#define wmainCRTStartup mainCRTStartup
-#endif // __GNUC__
-__declspec(noreturn)
-void wmainCRTStartup(void)
-{
-    int argc;
-    wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    ExitProcess(_tmain(argc, argv));
-}
+// micro CRT startup code
+#define ARGV shell32
+#include "nocrt0c.c"
