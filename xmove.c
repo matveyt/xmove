@@ -7,12 +7,10 @@
 #define _UNICODE
 #endif // UNICODE
 
-#include <stdarg.h>
+#define WIN32_LEAN_AND_MEAN
 #include <tchar.h>
-#include <windef.h>
-#include <winbase.h>
+#include <windows.h>
 #include <shellapi.h>
-#include <winuser.h>
 
 #define MAGIC       TEXT("--no-admin")
 #define COUNT(a)    (sizeof(a) / sizeof(*a))
