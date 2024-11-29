@@ -142,5 +142,7 @@ int _tmain(int argc, _TCHAR* argv[])
 }
 
 // micro CRT startup code
+#if __has_include("nocrt0c.c")
 #define ARGV shell32
 #include "nocrt0c.c"
+#endif
